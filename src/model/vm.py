@@ -339,7 +339,7 @@ class EnhancedVelocityModule(ModelSpec):
                     c=feat.reshape(-1, F_dim)
                 ).reshape(B, N, d)
 
-                pcl_next = pcl_next + (1.0 / num_steps) * pred_dir
+                pcl_next = pcl_next + (1.05 / num_steps) * pred_dir
         return pcl_next, None
 
     def training_step(self, batch):

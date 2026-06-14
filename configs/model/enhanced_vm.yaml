@@ -1,8 +1,8 @@
 __target__: EnhancedVelocityModule
 # Multi-scale neighbor lists for different feature scales
-frame_knn_list: [16, 32, 48]
+frame_knn_list: [32, 40, 48]
 num_train_points: 256
 # Feature dimensions
-feat_embedding_dim: 512
+feat_embedding_dim: 640
 decoder_hidden_dim: 128
 dsm_sigma: 0.01

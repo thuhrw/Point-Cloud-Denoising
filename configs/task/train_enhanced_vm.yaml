@@ -16,7 +16,7 @@ optimizer:
 
 lr_scheduler:
   T_max: 100
-  eta_min: 0.000001
+  eta_min: 0.0000001
 
 trainer:
   epochs: 100

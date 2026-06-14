@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+*.pyo
+
+# Training outputs
+experiments/
+tmp_predict/
+results/
+*.pkl
+
+# Logs
+*.log
+
+# IDE
+.vscode/
+.idea/

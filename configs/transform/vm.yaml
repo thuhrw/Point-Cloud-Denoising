@@ -11,12 +11,12 @@ train_transform:
       noise_std_max: 0.020
     
     - __target__: linear
-      scale: [0.8, 1.2]
+      scale: [0.6, 1.25]
       rotate_x_range: [-180, 180]
       rotate_y_range: [-180, 180]
       rotate_z_range: [-180, 180]
       scale_p: 0.5
-      rotate_p: 0.9
+      rotate_p: 0.95
     
     - __target__: patch
       patch_size: 1000
