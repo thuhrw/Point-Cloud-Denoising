@@ -324,7 +324,7 @@ class EnhancedVelocityModule(ModelSpec):
 
         return loss
 
-    def denoise_langevin_dynamics(self, pcl_noisy, num_steps=4):
+    def denoise_langevin_dynamics(self, pcl_noisy, num_steps=10):
         """
         pcl_noisy: (B, N, 3)
         """
@@ -339,7 +339,7 @@ class EnhancedVelocityModule(ModelSpec):
                     c=feat.reshape(-1, F_dim)
                 ).reshape(B, N, d)
 
-                pcl_next = pcl_next + (1.05 / num_steps) * pred_dir
+                pcl_next = pcl_next + (1.07 / num_steps) * pred_dir
         return pcl_next, None
 
     def training_step(self, batch):

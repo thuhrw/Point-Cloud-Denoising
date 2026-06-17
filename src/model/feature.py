@@ -214,25 +214,17 @@ class MultiScaleEdgeConv(nn.Module):
         self.num_scales = len(k_list)
         self.out_channels = out_channels
 
-        # Each conv outputs full out_channels (better per-scale representation)
+        # Each conv outputs out_channels
         self.convs = nn.ModuleList([
             EdgeConv(in_channels, out_channels, activation)
             for _ in range(self.num_scales)
         ])
 
-        # Fusion: concat num_scales * out_channels → out_channels
-        fused_channels = self.num_scales * out_channels
-        self.fusion = nn.Sequential(
-            nn.Linear(fused_channels, out_channels),
-            nn.BatchNorm1d(out_channels),
-            nn.ReLU(),
-            nn.Linear(out_channels, out_channels),
-        )
-
     def execute(self, x, edge_indices_dict):
         """
         x: (N, C)
         edge_indices_dict: dict with k values as keys, each edge_index is (2, E)
+        return: list of (N, out_channels) features for each scale
         """
         multi_scale_features = []
 
@@ -241,45 +233,51 @@ class MultiScaleEdgeConv(nn.Module):
             feat = conv(x, edge_index)
             multi_scale_features.append(feat)
 
-        # Concatenate multi-scale features (each is out_channels)
-        out = jt.concat(multi_scale_features, dim=-1)  # (N, num_scales * out_channels)
-        out = self.fusion(out)  # (N, out_channels)
-
-        return out
+        # Return list of multi-scale features (fusion done later)
+        return multi_scale_features
 
 
 class EnhancedFeatureExtractor(nn.Module):
     """
-    Simplified multi-scale feature extraction (like original VM but with multi-scale).
-    - Uses MultiScaleEdgeConv instead of single-scale EdgeConv
-    - No residual blocks (kept simple like original VM)
+    Multi-scale feature extraction with late fusion.
+    - Extracts features at each scale independently through all conv layers
+    - Fuses multi-scale features only at the final layer
     """
     def __init__(self, k_list=[8, 16, 32], input_dim=3, embedding_dim=256):
         super().__init__()
 
         self.k_list = k_list
+        self.num_scales = len(k_list)
         self.input_dim = input_dim
         self.embedding_dim = embedding_dim
 
-        # Multi-scale EdgeConv layers (same structure as original FeatureExtraction)
-        # conv1: directly from input_dim (like original VM)
-        self.conv1 = MultiScaleEdgeConv(
-            self.input_dim,
-            embedding_dim // 8,
-            k_list=k_list
-        )
+        # For each scale, create a separate feature extraction pipeline
+        self.conv1_list = nn.ModuleList([
+            EdgeConv(input_dim, embedding_dim // 8, activation='ReLU')
+            for _ in range(self.num_scales)
+        ])
 
-        self.conv2 = MultiScaleEdgeConv(
-            embedding_dim // 8,
-            embedding_dim // 4,
-            k_list=k_list
-        )
+        self.conv2_list = nn.ModuleList([
+            EdgeConv(embedding_dim // 8, embedding_dim // 4, activation='ReLU')
+            for _ in range(self.num_scales)
+        ])
 
-        self.conv3 = MultiScaleEdgeConv(
-            embedding_dim // 8 + embedding_dim // 4,
-            embedding_dim,
-            k_list=k_list,
-            activation=None
+        self.conv3_list = nn.ModuleList([
+            EdgeConv(
+                embedding_dim // 8 + embedding_dim // 4,
+                embedding_dim,
+                activation=None
+            )
+            for _ in range(self.num_scales)
+        ])
+
+        # Final fusion: concatenate all scale features and fuse
+        fused_channels = self.num_scales * embedding_dim
+        self.concat_fusion = nn.Sequential(
+            nn.Linear(fused_channels, embedding_dim),
+            nn.BatchNorm1d(embedding_dim),
+            nn.ReLU(),
+            nn.Linear(embedding_dim, embedding_dim),
         )
 
     def get_edge_indices_dict(self, x):
@@ -301,7 +299,7 @@ class EnhancedFeatureExtractor(nn.Module):
 
             # Use arange and repeat instead of broadcast
             dst = jt.arange(N).reshape(1, N, 1)
-            dst = jt.repeat(dst, (B, 1, k))
+            dst = jt.repeat(dst, (B, 1, self.k_list[self.k_list.index(k)]))
             dst = dst + base
 
             src = knn_idx.reshape(-1)
@@ -319,27 +317,58 @@ class EnhancedFeatureExtractor(nn.Module):
         """
         B, N, _ = x.shape
 
-        # -------- conv1 -------- (directly from input x, like original VM)
-        edge_indices = self.get_edge_indices_dict(x)
+        # Get edge indices for all scales based on input point cloud
+        edge_indices_dict = self.get_edge_indices_dict(x)
         x_flat = x.reshape(B * N, -1)
 
-        x1 = self.conv1(x_flat, edge_indices)
-        x1 = x1.reshape(B, N, -1)
+        # Store multi-scale features after each conv
+        x1_multi_scale = []
+        x2_multi_scale = []
+        x3_multi_scale = []
 
-        # -------- conv2 --------
-        edge_indices = self.get_edge_indices_dict(x1)
-        x1_flat = x1.reshape(B * N, -1)
+        # -------- Extract features for each scale independently --------
+        for i, k in enumerate(self.k_list):
+            edge_index = edge_indices_dict[k]
 
-        x2 = self.conv2(x1_flat, edge_indices)
-        x2 = x2.reshape(B, N, -1)
+            # Conv1: input -> feat_dim // 8
+            x1 = self.conv1_list[i](x_flat, edge_index)  # (B*N, feat_dim // 8)
+            x1_multi_scale.append(x1)
 
-        # -------- conv3 --------
-        edge_indices = self.get_edge_indices_dict(x2)
+        # Stack and reshape for next layer
+        x1_multi_scale = [feat.reshape(B, N, -1) for feat in x1_multi_scale]
 
-        x_combined = jt.concat([x1, x2], dim=-1)
-        x_combined_flat = x_combined.reshape(B * N, -1)
+        # Conv2: for each scale independently
+        for i, k in enumerate(self.k_list):
+            edge_index = edge_indices_dict[k]
+            x1_flat = x1_multi_scale[i].reshape(B * N, -1)
 
-        x3 = self.conv3(x_combined_flat, edge_indices)
-        x3 = x3.reshape(B, N, -1)
+            x2 = self.conv2_list[i](x1_flat, edge_index)  # (B*N, feat_dim // 4)
+            x2_multi_scale.append(x2)
 
-        return x3
+        # Stack and reshape
+        x2_multi_scale = [feat.reshape(B, N, -1) for feat in x2_multi_scale]
+
+        # Conv3: for each scale independently
+        for i, k in enumerate(self.k_list):
+            edge_index = edge_indices_dict[k]
+
+            # Concatenate x1 and x2 for this scale
+            x1_flat = x1_multi_scale[i].reshape(B * N, -1)
+            x2_flat = x2_multi_scale[i].reshape(B * N, -1)
+            x_combined = jt.concat([x1_flat, x2_flat], dim=-1)
+
+            x3 = self.conv3_list[i](x_combined, edge_index)  # (B*N, embedding_dim)
+            x3_multi_scale.append(x3)
+
+        # -------- Final fusion of all scales --------
+        x3_multi_scale = [feat.reshape(B, N, -1) for feat in x3_multi_scale]
+
+        # Concatenate all scales along feature dimension
+        out = jt.concat(x3_multi_scale, dim=-1)  # (B, N, num_scales * embedding_dim)
+        out_flat = out.reshape(B * N, -1)
+
+        # Apply fusion
+        out = self.concat_fusion(out_flat)  # (B*N, embedding_dim)
+        out = out.reshape(B, N, -1)
+
+        return out
