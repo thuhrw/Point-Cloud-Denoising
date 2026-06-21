@@ -54,13 +54,3 @@ result.zip
       <model_id>/
         denoised.npy    # np.float32, shape (N, 3)
 ```
-
-## 本地评测（需要 GT 数据，仅组委会持有）
-```bash
-python evaluate.py \
-    --pred_dir ./results/dataset_test_noisy \
-    --gt_dir ./test_gt \
-    --noisy_dir ./dataset_test_noisy \
-    --mesh_dir ./dataset_train \
-    --workers 8
-```
