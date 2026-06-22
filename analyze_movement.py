@@ -5,8 +5,8 @@ import os
 from pathlib import Path
 
 # 指定路径
-NOISY_DIR = Path("./dataset_test_noisy")
-PRED_DIR = Path("./results/dataset_test_noisy/shapenet")
+NOISY_DIR = Path("dataset_test_noisy")
+PRED_DIR = Path("results/dataset_test_noisy/shapenet")
 
 def compute_movement_distance(noisy_path, pred_path):
     """计算单个点云的平均移动距离"""

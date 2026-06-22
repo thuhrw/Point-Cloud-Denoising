@@ -10,7 +10,7 @@ conda install -c conda-forge libgomp -y # 确保OpenMP runtime存在
 
 # 安装依赖
 python -m pip install -r requirements.txt
-pip install jittor numpy trimesh scipy omegaconf point-cloud-utils
+pip install jittor numpy trimesh scipy omegaconf point-cloud-utils scikit-learn
 ```
 
 ## 数据准备
@@ -30,7 +30,10 @@ pip install jittor numpy trimesh scipy omegaconf point-cloud-utils
 ```bash
 python run.py --task configs/task/train_vm.yaml
 ```
-训练权重保存在 `experiments/` 目录下。
+训练权重保存在 `experiments/` 目录下。可以选择将输出重定向到train.log以便查看，并且用analyze_val_loss.py分析验证损失。
+```bash
+python analyze_val_loss.py
+```
 
 ## 推理（生成提交文件）
 修改 `configs/task/predict_vm.yaml` 中的 `load_ckpt` 为你的最佳权重路径，然后运行：
@@ -38,6 +41,11 @@ python run.py --task configs/task/train_vm.yaml
 python run.py --task configs/task/predict_vm.yaml
 ```
 降噪结果保存在 `results/` 目录下，格式为 `.npy` (float32, shape (N,3))。
+
+推理完可能需要补全点云到目标点数（50000），可以使用 `script.py`:
+```bash
+python script.py
+```
 
 ## 打包提交
 ```bash

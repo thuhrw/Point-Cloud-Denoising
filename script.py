@@ -3,8 +3,8 @@ import numpy as np
 from tqdm import tqdm
 from sklearn.neighbors import NearestNeighbors
 
-NOISY_ROOT = "/home/ubuntu/starter_code/dataset_test_noisy/shapenet"
-DENOISED_ROOT = "/home/ubuntu/starter_code/results/dataset_test_noisy/shapenet"
+NOISY_ROOT = "dataset_test_noisy/shapenet"
+DENOISED_ROOT = "results/dataset_test_noisy/shapenet"
 POINT_TARGET = 50000
 K_NEIGHBORS = 32  # 更强补全
 USE_WEIGHTED = True  # 加权平均（效果提升关键）

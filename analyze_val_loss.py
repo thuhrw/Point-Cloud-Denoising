@@ -1,7 +1,7 @@
 import re
 
 # 读取日志文件并提取每个epoch的验证loss
-with open('/home/ubuntu/starter_code/train.log', 'r') as f:
+with open("train.log", 'r') as f:
     lines = f.readlines()
 
 # 存储每个epoch的验证loss
