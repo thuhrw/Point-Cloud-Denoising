@@ -317,8 +317,8 @@ class EnhancedFeatureExtractor(nn.Module):
         """
         B, N, _ = x.shape
 
-        # Get edge indices for all scales based on input point cloud
-        edge_indices_dict = self.get_edge_indices_dict(x)
+        # Get edge indices for conv1 based on input point cloud
+        edge_indices_dict_conv1 = self.get_edge_indices_dict(x)
         x_flat = x.reshape(B * N, -1)
 
         # Store multi-scale features after each conv
@@ -326,31 +326,29 @@ class EnhancedFeatureExtractor(nn.Module):
         x2_multi_scale = []
         x3_multi_scale = []
 
-        # -------- Extract features for each scale independently --------
+        # -------- Conv1: input -> feat_dim // 8 (coordinate-space KNN) --------
         for i, k in enumerate(self.k_list):
-            edge_index = edge_indices_dict[k]
-
-            # Conv1: input -> feat_dim // 8
+            edge_index = edge_indices_dict_conv1[k]
             x1 = self.conv1_list[i](x_flat, edge_index)  # (B*N, feat_dim // 8)
             x1_multi_scale.append(x1)
 
-        # Stack and reshape for next layer
         x1_multi_scale = [feat.reshape(B, N, -1) for feat in x1_multi_scale]
 
-        # Conv2: for each scale independently
+        # -------- Conv2: for each scale, recompute KNN in feature space --------
         for i, k in enumerate(self.k_list):
-            edge_index = edge_indices_dict[k]
+            edge_indices_dict_conv2 = self.get_edge_indices_dict(x1_multi_scale[i])
+            edge_index = edge_indices_dict_conv2[k]
             x1_flat = x1_multi_scale[i].reshape(B * N, -1)
 
             x2 = self.conv2_list[i](x1_flat, edge_index)  # (B*N, feat_dim // 4)
             x2_multi_scale.append(x2)
 
-        # Stack and reshape
         x2_multi_scale = [feat.reshape(B, N, -1) for feat in x2_multi_scale]
 
-        # Conv3: for each scale independently
+        # -------- Conv3: for each scale, recompute KNN in feature space --------
         for i, k in enumerate(self.k_list):
-            edge_index = edge_indices_dict[k]
+            edge_indices_dict_conv3 = self.get_edge_indices_dict(x2_multi_scale[i])
+            edge_index = edge_indices_dict_conv3[k]
 
             # Concatenate x1 and x2 for this scale
             x1_flat = x1_multi_scale[i].reshape(B * N, -1)
