@@ -22,6 +22,7 @@ def get_optimizer(optimizer_config, model):
     MAPPING = {
         'sgd': optim.SGD,
         'adam': optim.Adam,
+        'adamw': optim.AdamW,
     }
     if __target__ not in MAPPING:
         raise ValueError(f"unsupported optimizer: {__target__}")

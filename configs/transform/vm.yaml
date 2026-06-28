@@ -11,7 +11,7 @@ train_transform:
       noise_std_max: 0.020
     
     - __target__: linear
-      scale: [0.6, 1.25]
+      scale: [0.5, 1.5]
       rotate_x_range: [-180, 180]
       rotate_y_range: [-180, 180]
       rotate_z_range: [-180, 180]

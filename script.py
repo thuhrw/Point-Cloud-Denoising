@@ -6,7 +6,7 @@ from sklearn.neighbors import NearestNeighbors
 NOISY_ROOT = "dataset_test_noisy/shapenet"
 DENOISED_ROOT = "results/dataset_test_noisy/shapenet"
 POINT_TARGET = 50000
-K_NEIGHBORS = 32  # 更强补全
+K_NEIGHBORS = 16  # 更强补全
 USE_WEIGHTED = True  # 加权平均（效果提升关键）
 
 all_denoised = []

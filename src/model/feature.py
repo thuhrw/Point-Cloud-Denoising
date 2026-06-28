@@ -54,16 +54,16 @@ class EdgeConv(nn.Module):
         msg = msg.reshape(N, k, C)
 
         # max pooling over neighbors
-        out = jt.max(msg, dim=1)
-        # out = jt.full((N, msg.shape[1]), 0)
+        out_max = jt.max(msg, dim=1)
+        # out_mean = jt.full((N, msg.shape[1]), 0)
         # cnt = jt.full((N, msg.shape[1]), 0)
         
         # # scatter mean
-        # out = out.scatter_(0, dst.unsqueeze(1).broadcast(msg.shape), msg, reduce='add')
+        # out_mean = out_mean.scatter_(0, dst.unsqueeze(1).broadcast(msg.shape), msg, reduce='add')
         # cnt = cnt.scatter_(0, dst.unsqueeze(1).broadcast(msg.shape), jt.ones_like(msg), reduce='add')
-        # out = out / (cnt + 1e-8)
+        # out_mean = out_mean / (cnt + 1e-8)
         out_2 = self.lin(x)
-        return out + out_2
+        return out_max + out_2
 
 class DynamicEdgeConv(EdgeConv):
     def __init__(self, in_channels, out_channels, activation: Optional[str]='ReLU'):

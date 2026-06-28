@@ -11,8 +11,9 @@ loss:
   loss: 1.0
 
 optimizer:
-  __target__: adam
+  __target__: adamw
   lr: 0.00001
+  weight_decay: 0.01
 
 lr_scheduler:
   T_max: 100
